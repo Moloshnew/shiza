@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+
+<script type="module">
+  async function init() {
+    const { instance } = await WebAssembly.instantiateStreaming(fetch("./add.wasm"));
+  
+    alert(instance.exports.add(4, 1));
+  }
+  
+  alert("aboba");
+
+  init();
+</script>
