@@ -2,57 +2,40 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Bismuth fractal</title>
+    <title> -=- shiza -=-</title>
 </head>
 <body style="margin: 0; padding: 0; overflow: hidden;">
-    <canvas id="canvas">
-        Your browser doesn't appear to support the HTML5 canvas element
-    </canvas>
+    <canvas id="canvas"></canvas>
 
     <script type="shader" id="vertex-shader">
-        attribute vec2 vertexPosition;
-		
-        void main(){
-            gl_Position = vec4(vertexPosition, 0.0, 1);
-        }
+      attribute vec2 vertexPosition;
+  
+      void main(){
+          gl_Position = vec4(vertexPosition, 0.0, 1);
+      }
     </script>
 
     <script type="shader" id="fragment-shader">
-    precision mediump float;
+      precision mediump float;
 
-    uniform vec2 u_resolution;
-    uniform mediump vec2 a, b, start;
-    uniform float h;
+      uniform vec2 res;
+      uniform mediump vec2 ball;
 
-    void main(){
-        vec2 c = (gl_FragCoord.xy + a) * b;
-        vec2 z = c;
-        float tmp = 0.0, J, sinJ, sinJ2, sinJ3, sinJ4;
-        for (float i = 0.0; i < 360.0; i += 4.0) {
-            if (z.x * z.x + z.y * z.y < 8.0) {
-                tmp = z.x * z.x + z.y * z.y + start.x;
-                z.y = 2.0 * abs(z.x * z.y) + start.y;
-                z.x = tmp;
-                J = i;
-            }
-        }
+      void main() {
+        vec2 c = (gl_FragCoord.xy / res.xy - 0.5) * 20.;
+        c.x *= res.x / res.y;
 
-        if (z.x * z.x + z.y * z.y > 4.0) {
-            sinJ = sin(J * 0.01745);
-            sinJ2 = sinJ * sinJ;
-            sinJ3 = sinJ2 * sinJ;
-            sinJ4 = sinJ3 * sinJ;
+        vec3 color = vec3(0.);
 
-        gl_FragColor = vec4(
-            abs(0.0 * sinJ4 - 0.809 * sinJ3 - 2.739 * sinJ2 + 0.715 * sinJ + 0.2),
-            abs(-2.086 * sinJ4 + 1.808 * sinJ3 + 2.5755 * sinJ2 - 1.396 * sinJ + 0.024),
-            abs(1.287 * sinJ4 - 1.37 * sinJ3 - 2.166 * sinJ2 + 1.265 * sinJ + 0.5),
-            1.0);
-        } else {
-            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        }
-    }
+        if (length(c - ball) <= .2) 
+          color = vec3(1.);
 
+        float r = -0.6 * c.x * c.x - c.x + 90. + c.y * 10.;
+        if (r >= -0.2 && r <= 0.2)
+          color = vec3(0.5);
+
+        gl_FragColor = vec4(color,1.0);
+      }
     </script>
 
     <script>
@@ -80,14 +63,12 @@
             gl.compileShader(vertexShader);
             if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
                 alert('Error compiling vertex shader!');
-		console.error(gl.getShaderInfoLog(vertexShader));
                 return;
             }
 
             gl.compileShader(fragmentShader);
             if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
                 alert('Error compiling fragment shader!');
-		console.error(gl.getShaderInfoLog(fragmentShader));
                 return;
             }
             
@@ -125,57 +106,71 @@
             );
             gl.enableVertexAttribArray(positionAttribLocation);
 
-			var a = gl.getUniformLocation(program, "a"),
-				b = gl.getUniformLocation(program, "b"),
-				h = gl.getUniformLocation(program, "h"),
-				start = gl.getUniformLocation(program, "start");
+      var ball = gl.getUniformLocation(program, "ball");
+      var res = gl.getUniformLocation(program, "res");
+      
+      gl.useProgram(program);
 
-            gl.useProgram(program);
-			
-			var x1 = -3 * canvas.width / canvas.height, 
-				y1 = -3, 
-				x2 = 3 * canvas.width / canvas.height, 
-				y2 = 3, 
-				stepX = (x2 - x1) / canvas.width, 
-				stepY = (y2 - y1) / canvas.height,
-				height = 1,
-				timeOut = false;
+      var x = -6,
+          y = -6,
+          vx = 0.1,
+          vy = 0.20,
+          g = 0.0015,
+          a = 6 / 100,
+          b = 1 / 10,
+          c = -9;
 			
 			var timer = setInterval(function() {
-				timeOut = true;
-			}, 30);
-				
-			canvas.addEventListener('mousemove', function(event) {
-				if (timeOut) {
-					timeOut = !timeOut;
-					gl.clearColor(0.0, 0.0, 0.0, 1.0);
+          gl.clearColor(0.0, 0.0, 0.0, 1.0);
 					gl.clear(gl.COLOR_BUFFER_BIT);
-					
-					gl.uniform2fv(start, [x1 + stepX * event.clientX, y1 + stepY * event.clientY]);
-					gl.uniform2fv(a, [x1 / stepX, y1 / stepY]);
-					gl.uniform2fv(b, [stepX, stepY]);
-					gl.uniform1f(h, height);
-					
+
 					gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
-				}
-			});
-			canvas.addEventListener('touchmove', function(event) {
-				if (timeOut) {
-					timeOut = !timeOut;
-					gl.clearColor(0.0, 0.0, 0.0, 1.0);
-					gl.clear(gl.COLOR_BUFFER_BIT);
+					            
+          gl.uniform2fv(res, [canvas.width, canvas.height]);
+					gl.uniform2fv(ball, [x, y]);
+          
+
+          var na = a,
+              nb = b - vy / vx,
+              nc = c + x * vy / vx - y,
+              d = nb * nb - 4 * na * nc;
+
+          if (d >= 0.) {
+            d = Math.sqrt(d);
+            x1 = (-nb + d) / (2 * a);
+            x2 = (-nb - d) / (2 * a);
+            y1 = a * x1 * x1 + b * x1 + c;
+            y2 = a * x2 * x2 + b * x2 + c;
+
+            if ((((x1 - x) * (x1 - x - vx) <= 0) && ((y1 - y) * (y1 - y - vy) <= 0)) || (((x2 - x) * (x2 - x - vx) <= 0) && ((y2 - y) * (y2 - y - vy) <= 0))) {
+              
+              k = 2 * a * x + b;
+              nx = k;
+              ny = -1;
+              d = Math.sqrt(nx * nx + ny * ny);
+              nx /= d;
+              ny /= d;
+
+              dot = vx * nx + vy * ny;
+
+              vx -= 2 * dot * nx;
+              vy -= 2 * dot * ny;
+              
+              vx *= 0.9;
+              vy *= 0.9;
+
+              //vy = -vy;
+              //vx = -vx;
+            } 
+          }
+
+          y += vy;
+          x += vx;
+          vy -= g;
 					
-					gl.uniform2fv(start, [x1 + stepX * event.touches[0].clientX, y1 + stepY * event.touches[0].clientY]);
-					gl.uniform2fv(a, [x1 / stepX, y1 / stepY]);
-					gl.uniform2fv(b, [stepX, stepY]);
-					gl.uniform1f(h, height);
-					
-					gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
-				}
-			});
+      }, 15);	
 		}
 		
-
     document.addEventListener('DOMContentLoaded', function() {
       StartWebGL();
     });
