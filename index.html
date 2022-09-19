@@ -1,13 +1,148 @@
 <!DOCTYPE html>
 
-<script type="module">
-  async function init() {
-    const { instance } = await WebAssembly.instantiateStreaming(fetch("./add.wasm"));
-  
-    alert(instance.exports.add(4, 1));
-  }
-  
-  alert("aboba");
+<head>
+    <meta charset="UTF-8">
+    <title>Bismuth fractal</title>
+</head>
+<body style="margin: 0; padding: 0; overflow: hidden;">
+    <canvas id="canvas">
+        Your browser doesn't appear to support the HTML5 canvas element
+    </canvas>
 
-  init();
-</script>
+    <script type="shader" id="vertex-shader">
+        attribute vec2 vertexPosition;
+		
+        void main(){
+            gl_Position = vec4(vertexPosition, 0.0, 1);
+        }
+    </script>
+
+    <script type="shader" id="fragment-shader" src="frag"></script>
+
+    <script>
+        function StartWebGL() {
+            var vertexShaderText = document.getElementById('vertex-shader').text,
+                fragmentShaderText = document.getElementById('fragment-shader').text,
+                canvas = document.getElementById('canvas'),
+                gl = canvas.getContext('webgl');
+                
+            if (!gl) {
+                alert('Your browser does not support WebGL');
+                return;
+            }
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+
+            var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+            
+            gl.shaderSource(vertexShader, vertexShaderText);
+            gl.shaderSource(fragmentShader, fragmentShaderText);
+            
+            gl.compileShader(vertexShader);
+            if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                alert('Error compiling vertex shader!');
+		console.error(gl.getShaderInfoLog(vertexShader));
+                return;
+            }
+
+            gl.compileShader(fragmentShader);
+            if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                alert('Error compiling fragment shader!');
+		console.error(gl.getShaderInfoLog(fragmentShader));
+                return;
+            }
+            
+            var program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            
+            gl.validateProgram(program);
+            
+            if (!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
+                alert('Error validating program');
+                return;
+            }
+
+            var vertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            
+            var vertexArray = [
+                -1.0,  -1.0,
+                -1.0, 1.0,
+                 1.0, 1.0,
+                 1.0,  -1.0,
+            ];
+            
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexArray), gl.STATIC_DRAW);
+            var positionAttribLocation = gl.getAttribLocation(program, 'vertexPosition');
+            gl.vertexAttribPointer(
+                positionAttribLocation,
+                2,
+                gl.FLOAT,
+                gl.FALSE,
+                0,
+                0
+            );
+            gl.enableVertexAttribArray(positionAttribLocation);
+
+			var a = gl.getUniformLocation(program, "a"),
+				b = gl.getUniformLocation(program, "b"),
+				h = gl.getUniformLocation(program, "h"),
+				start = gl.getUniformLocation(program, "start");
+
+            gl.useProgram(program);
+			
+			var x1 = -3 * canvas.width / canvas.height, 
+				y1 = -3, 
+				x2 = 3 * canvas.width / canvas.height, 
+				y2 = 3, 
+				stepX = (x2 - x1) / canvas.width, 
+				stepY = (y2 - y1) / canvas.height,
+				height = 1,
+				timeOut = false;
+			
+			var timer = setInterval(function() {
+				timeOut = true;
+			}, 30);
+				
+			canvas.addEventListener('mousemove', function(event) {
+				if (timeOut) {
+					timeOut = !timeOut;
+					gl.clearColor(0.0, 0.0, 0.0, 1.0);
+					gl.clear(gl.COLOR_BUFFER_BIT);
+					
+					gl.uniform2fv(start, [x1 + stepX * event.clientX, y1 + stepY * event.clientY]);
+					gl.uniform2fv(a, [x1 / stepX, y1 / stepY]);
+					gl.uniform2fv(b, [stepX, stepY]);
+					gl.uniform1f(h, height);
+					
+					gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+				}
+			});
+			canvas.addEventListener('touchmove', function(event) {
+				if (timeOut) {
+					timeOut = !timeOut;
+					gl.clearColor(0.0, 0.0, 0.0, 1.0);
+					gl.clear(gl.COLOR_BUFFER_BIT);
+					
+					gl.uniform2fv(start, [x1 + stepX * event.touches[0].clientX, y1 + stepY * event.touches[0].clientY]);
+					gl.uniform2fv(a, [x1 / stepX, y1 / stepY]);
+					gl.uniform2fv(b, [stepX, stepY]);
+					gl.uniform1f(h, height);
+					
+					gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+				}
+			});
+		}
+		
+
+    document.addEventListener('DOMContentLoaded', function() {
+      StartWebGL();
+    });
+
+  </script>
+</body>
